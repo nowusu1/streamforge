@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StreamForge</title>
+</head>
+<body>
+
+  <h1>StreamForge</h1>
+  <p>Upload a video and stream the processed result.</p>
+
+  <input type="file" id="videoFile" accept="video/*" />
+
+  <button id="uploadButton">
+    Upload & Process
+  </button>
+
+  <p id="status"></p>
+
+  <video
+    id="videoPlayer"
+    controls
+    width="800">
+  </video>
+
+  <script>
+    const uploadButton = document.getElementById("uploadButton");
+    const videoFile = document.getElementById("videoFile");
+    const status = document.getElementById("status");
+    const videoPlayer = document.getElementById("videoPlayer");
+
+    uploadButton.addEventListener("click", async () => {
+      const file = videoFile.files[0];
+
+      if (!file) {
+        status.textContent = "Please select a video first.";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      status.textContent = "Uploading and processing video...";
+
+      try {
+        const response = await fetch("/upload", {
+          method: "POST",
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error("Upload failed");
+        }
+
+        const data = await response.json();
+
+        status.textContent = "Video processed successfully.";
+
+        videoPlayer.src = data.stream_url;
+        videoPlayer.load();
+        videoPlayer.play();
+
+      } catch (error) {
+        status.textContent = "Something went wrong.";
+        console.error(error);
+      }
+    });
+  </script>
+
+</body>
+</html>
