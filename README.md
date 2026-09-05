@@ -5,9 +5,6 @@ StreamForge is a video streaming infrastructure project that transforms uploaded
 The system accepts a video upload, queues the processing job through Redis and RQ, detects the source resolution with FFprobe, generates multiple HLS renditions with FFmpeg, creates a master playlist, and serves the result through a browser-based adaptive video player.
 
 ---
-
-## Demo
-
 ## Demo
 
 ![StreamForge Demo](backend/static/images/streamforge-demo.png)
@@ -15,8 +12,6 @@ The system accepts a video upload, queues the processing job through Redis and R
 ## Architecture
 
 ![StreamForge Architecture](backend/static/images/streaming-infrastructure.png)
-## What StreamForge Does
-
 StreamForge implements a simplified production-style video streaming pipeline:
 
 ```text
