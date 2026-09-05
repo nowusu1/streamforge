@@ -8,13 +8,13 @@ The system accepts a video upload, queues the processing job through Redis and R
 
 ## Demo
 
+## Demo
+
 ![StreamForge Demo](backend/static/images/streamforge-demo.png)
 
 ## Architecture
 
-![StreamForge Streaming Infrastructure](backend/static/images/streaming-infrastructure.png)
----
-
+![StreamForge Architecture](backend/static/images/streaming-infrastructure.png)
 ## What StreamForge Does
 
 StreamForge implements a simplified production-style video streaming pipeline:
