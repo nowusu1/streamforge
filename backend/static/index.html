@@ -3,69 +3,1533 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <title>StreamForge</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      min-height: 100vh;
+      color: #f8fafc;
+
+      background:
+        radial-gradient(
+          circle at top left,
+          rgba(99, 102, 241, 0.28),
+          transparent 35%
+        ),
+        radial-gradient(
+          circle at top right,
+          rgba(14, 165, 233, 0.20),
+          transparent 30%
+        ),
+        linear-gradient(
+          135deg,
+          #0f172a 0%,
+          #111827 45%,
+          #172554 100%
+        );
+    }
+
+    .container {
+      width: min(1180px, 92%);
+      margin: 0 auto;
+    }
+
+    header {
+      padding: 24px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+
+    .brand span {
+      background: linear-gradient(
+        90deg,
+        #60a5fa,
+        #a78bfa
+      );
+
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-subtitle {
+      color: #94a3b8;
+      font-size: 0.9rem;
+    }
+
+    main {
+      padding: 72px 0 60px;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      align-items: center;
+      gap: 56px;
+      margin-bottom: 62px;
+    }
+
+    .hero-copy {
+      text-align: left;
+    }
+
+    .hero-label {
+      display: inline-block;
+      margin-bottom: 18px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #bfdbfe;
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(96, 165, 250, 0.18);
+    }
+
+    .hero-copy h1 {
+      font-size: clamp(3rem, 6vw, 5.3rem);
+      line-height: 0.98;
+      margin-bottom: 24px;
+
+      background: linear-gradient(
+        90deg,
+        #ffffff,
+        #93c5fd,
+        #c4b5fd
+      );
+
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-copy p {
+      max-width: 620px;
+      color: #cbd5e1;
+      font-size: 1.08rem;
+      line-height: 1.75;
+    }
+
+    .hero-image-card {
+      position: relative;
+      overflow: hidden;
+      border-radius: 26px;
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
+    }
+
+    .hero-image-card img {
+      width: 100%;
+      height: 430px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .hero-image-overlay {
+      position: absolute;
+      inset: 0;
+
+      background:
+        linear-gradient(
+          180deg,
+          transparent 45%,
+          rgba(15, 23, 42, 0.92) 100%
+        );
+    }
+
+    .hero-image-caption {
+      position: absolute;
+      left: 24px;
+      right: 24px;
+      bottom: 22px;
+    }
+
+    .hero-image-caption strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 1rem;
+    }
+
+    .hero-image-caption span {
+      color: #cbd5e1;
+      font-size: 0.85rem;
+    }
+
+    .upload-card {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 26px;
+      border-radius: 24px;
+
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .upload-area {
+      position: relative;
+      overflow: hidden;
+
+      border: 1.5px dashed rgba(147, 197, 253, 0.35);
+      border-radius: 18px;
+      padding: 52px 28px;
+      text-align: center;
+
+      background:
+        linear-gradient(
+          180deg,
+          rgba(30, 41, 59, 0.75),
+          rgba(15, 23, 42, 0.60)
+        );
+
+      transition:
+        border-color 0.2s ease,
+        background 0.2s ease,
+        transform 0.2s ease;
+    }
+
+    .upload-area.dragging {
+      border-color: #60a5fa;
+
+      background:
+        linear-gradient(
+          180deg,
+          rgba(37, 99, 235, 0.18),
+          rgba(76, 29, 149, 0.16)
+        );
+
+      transform: scale(1.01);
+    }
+
+    .upload-area::before {
+      content: "";
+      position: absolute;
+      width: 220px;
+      height: 220px;
+      top: -130px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background: rgba(99, 102, 241, 0.13);
+      filter: blur(30px);
+      pointer-events: none;
+    }
+
+    .upload-icon {
+      position: relative;
+      width: 64px;
+      height: 64px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      margin: 0 auto 20px;
+      border-radius: 18px;
+      font-size: 1.8rem;
+
+      background:
+        linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.25),
+          rgba(124, 58, 237, 0.25)
+        );
+
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .upload-area h2 {
+      position: relative;
+      margin-bottom: 10px;
+      font-size: 1.55rem;
+    }
+
+    .upload-description {
+      position: relative;
+      max-width: 560px;
+      margin: 0 auto 22px;
+      color: #94a3b8;
+      line-height: 1.6;
+    }
+
+    .drop-text {
+      color: #64748b;
+      font-size: 0.9rem;
+      margin-bottom: 22px;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .choose-file-button {
+      display: inline-block;
+      margin-bottom: 18px;
+      padding: 11px 17px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 700;
+      color: #0f172a;
+      background: #e2e8f0;
+
+      transition:
+        background 0.2s ease,
+        transform 0.2s ease;
+    }
+
+    .choose-file-button:hover {
+      background: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    .file-info {
+      display: none;
+      max-width: 520px;
+      margin: 4px auto 22px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      text-align: left;
+    }
+
+    .file-info.visible {
+      display: block;
+    }
+
+    .file-name {
+      color: #f8fafc;
+      font-weight: 700;
+      font-size: 0.95rem;
+
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .file-size {
+      color: #94a3b8;
+      font-size: 0.8rem;
+      margin-top: 5px;
+    }
+
+    button {
+      position: relative;
+      border: none;
+      border-radius: 12px;
+      padding: 14px 25px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: white;
+
+      background:
+        linear-gradient(
+          90deg,
+          #2563eb,
+          #7c3aed
+        );
+
+      box-shadow: 0 10px 30px rgba(59, 130, 246, 0.22);
+
+      transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease,
+        opacity 0.2s ease;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 34px rgba(99, 102, 241, 0.32);
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    #status {
+      margin-top: 18px;
+      min-height: 24px;
+      color: #bfdbfe;
+      font-size: 0.95rem;
+    }
+
+    .processing-wrapper {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 18px;
+      color: #bfdbfe;
+      font-size: 0.9rem;
+    }
+
+    .processing-wrapper.visible {
+      display: flex;
+    }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.16);
+      border-top-color: #60a5fa;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .player-section {
+      display: none;
+      margin-top: 28px;
+      padding-top: 10px;
+    }
+
+    .player-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .player-section h3 {
+      font-size: 1.2rem;
+    }
+
+    .stream-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .live-badge {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #bbf7d0;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.20);
+    }
+
+    .current-quality {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #bfdbfe;
+      background: rgba(59, 130, 246, 0.10);
+      border: 1px solid rgba(96, 165, 250, 0.20);
+    }
+
+    video {
+      display: block;
+      width: 100%;
+      border-radius: 16px;
+      background: #000;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    .quality-panel {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+
+      margin-top: 16px;
+      padding: 14px 16px;
+
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .quality-info strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.9rem;
+    }
+
+    .quality-info span {
+      color: #94a3b8;
+      font-size: 0.8rem;
+    }
+
+    .quality-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .quality-control label {
+      color: #94a3b8;
+      font-size: 0.85rem;
+    }
+
+    select {
+      min-width: 120px;
+      padding: 9px 12px;
+      border-radius: 10px;
+      color: #f8fafc;
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .tech-row {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      max-width: 860px;
+      margin: 28px auto 0;
+    }
+
+    .tech-chip {
+      padding: 8px 12px;
+      border-radius: 999px;
+      color: #94a3b8;
+      font-size: 0.8rem;
+      background: rgba(15, 23, 42, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    footer {
+      text-align: center;
+      padding: 34px 0 42px;
+      color: #94a3b8;
+      font-size: 0.9rem;
+    }
+
+    footer strong {
+      color: #cbd5e1;
+    }
+
+    @media (max-width: 850px) {
+      .hero-grid {
+        grid-template-columns: 1fr;
+        gap: 36px;
+      }
+
+      .hero-copy {
+        text-align: center;
+      }
+
+      .hero-copy p {
+        margin: 0 auto;
+      }
+
+      .hero-image-card {
+        max-width: 700px;
+        margin: 0 auto;
+      }
+
+      .hero-image-card img {
+        height: 360px;
+      }
+    }
+
+    @media (max-width: 700px) {
+      main {
+        padding-top: 55px;
+      }
+
+      .nav-subtitle {
+        display: none;
+      }
+
+      .upload-card {
+        padding: 16px;
+      }
+
+      .upload-area {
+        padding: 40px 18px;
+      }
+
+      .hero-copy p {
+        font-size: 1rem;
+      }
+
+      .hero-image-card img {
+        height: 300px;
+      }
+
+      .quality-panel {
+        align-items: flex-start;
+      }
+    }
+  </style>
 </head>
+
 <body>
 
-  <h1>StreamForge</h1>
-  <p>Upload a video and stream the processed result.</p>
+  <header>
+    <div class="container nav">
 
-  <input type="file" id="videoFile" accept="video/*" />
+      <div class="brand">
+        Stream<span>Forge</span>
+      </div>
 
-  <button id="uploadButton">
-    Upload & Process
-  </button>
+      <div class="nav-subtitle">
+        Adaptive video streaming infrastructure
+      </div>
 
-  <p id="status"></p>
+    </div>
+  </header>
 
-  <video
-    id="videoPlayer"
-    controls
-    width="800">
-  </video>
+  <main class="container">
+
+    <section class="hero-grid">
+
+      <div class="hero-copy">
+
+        <div class="hero-label">
+          Video Streaming Infrastructure
+        </div>
+
+        <h1>
+          Upload.<br />
+          Process.<br />
+          Stream.
+        </h1>
+
+        <p>
+          StreamForge transforms uploaded videos into adaptive HLS streams
+          using FastAPI and FFmpeg, then delivers the processed content
+          directly through the browser.
+        </p>
+
+      </div>
+
+      <div class="hero-image-card">
+
+        <img
+          src="/app/images/streaming-infrastructure.png"
+          alt="Video streaming infrastructure"
+        />
+
+        <div class="hero-image-overlay"></div>
+
+        <div class="hero-image-caption">
+
+          <strong>
+            Built for modern video delivery
+          </strong>
+
+          <span>
+            Background processing • adaptive HLS • multi-rendition streaming
+          </span>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <section class="upload-card">
+
+      <div
+        class="upload-area"
+        id="uploadArea"
+      >
+
+        <div class="upload-icon">
+          ↑
+        </div>
+
+        <h2>
+          Upload your video
+        </h2>
+
+        <p class="upload-description">
+          Drag and drop a video here, or choose one from your computer.
+          StreamForge will queue the processing job and generate
+          1080p, 720p and 480p HLS renditions in the background.
+        </p>
+
+        <label
+          for="videoFile"
+          class="choose-file-button"
+        >
+          Choose Video
+        </label>
+
+        <input
+          type="file"
+          id="videoFile"
+          accept="video/*"
+        />
+
+        <p class="drop-text">
+          MP4, MOV, WebM and other supported video formats
+        </p>
+
+        <div
+          class="file-info"
+          id="fileInfo"
+        >
+
+          <div
+            class="file-name"
+            id="fileName"
+          ></div>
+
+          <div
+            class="file-size"
+            id="fileSize"
+          ></div>
+
+        </div>
+
+        <button id="uploadButton">
+          Upload & Process
+        </button>
+
+        <div
+          class="processing-wrapper"
+          id="processingWrapper"
+        >
+
+          <div class="spinner"></div>
+
+          <span id="processingText">
+            Waiting for processing...
+          </span>
+
+        </div>
+
+        <p id="status"></p>
+
+      </div>
+
+      <div
+        class="player-section"
+        id="playerSection"
+      >
+
+        <div class="player-header">
+
+          <h3>
+            Your Stream
+          </h3>
+
+          <div class="stream-status">
+
+            <div class="live-badge">
+              STREAM READY
+            </div>
+
+            <div
+              class="current-quality"
+              id="currentQuality"
+            >
+              Quality: Auto
+            </div>
+
+          </div>
+
+        </div>
+
+        <video
+          id="videoPlayer"
+          controls
+        ></video>
+
+        <div class="quality-panel">
+
+          <div class="quality-info">
+
+            <strong>
+              Adaptive Bitrate Streaming
+            </strong>
+
+            <span>
+              Auto mode chooses a rendition based on available bandwidth.
+            </span>
+
+          </div>
+
+          <div class="quality-control">
+
+            <label for="qualitySelector">
+              Quality
+            </label>
+
+            <select id="qualitySelector">
+              <option value="-1">
+                Auto
+              </option>
+            </select>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <div class="tech-row">
+
+      <div class="tech-chip">
+        FastAPI
+      </div>
+
+      <div class="tech-chip">
+        FFmpeg
+      </div>
+
+      <div class="tech-chip">
+        Background Jobs
+      </div>
+
+      <div class="tech-chip">
+        HLS
+      </div>
+
+      <div class="tech-chip">
+        hls.js
+      </div>
+
+      <div class="tech-chip">
+        H.264
+      </div>
+
+      <div class="tech-chip">
+        Python
+      </div>
+
+    </div>
+
+  </main>
+
+  <footer>
+    Built with
+    <strong>
+      FastAPI, FFmpeg, HLS & hls.js
+    </strong>
+  </footer>
 
   <script>
-    const uploadButton = document.getElementById("uploadButton");
-    const videoFile = document.getElementById("videoFile");
-    const status = document.getElementById("status");
-    const videoPlayer = document.getElementById("videoPlayer");
+    const uploadButton =
+      document.getElementById("uploadButton");
 
-    uploadButton.addEventListener("click", async () => {
-      const file = videoFile.files[0];
+    const videoFile =
+      document.getElementById("videoFile");
 
-      if (!file) {
-        status.textContent = "Please select a video first.";
-        return;
+    const uploadArea =
+      document.getElementById("uploadArea");
+
+    const fileInfo =
+      document.getElementById("fileInfo");
+
+    const fileName =
+      document.getElementById("fileName");
+
+    const fileSize =
+      document.getElementById("fileSize");
+
+    const status =
+      document.getElementById("status");
+
+    const videoPlayer =
+      document.getElementById("videoPlayer");
+
+    const playerSection =
+      document.getElementById("playerSection");
+
+    const processingWrapper =
+      document.getElementById("processingWrapper");
+
+    const processingText =
+      document.getElementById("processingText");
+
+    const qualitySelector =
+      document.getElementById("qualitySelector");
+
+    const currentQuality =
+      document.getElementById("currentQuality");
+
+
+    let selectedFile = null;
+    let hls = null;
+
+
+    function formatFileSize(bytes) {
+
+      if (bytes === 0) {
+        return "0 Bytes";
       }
 
-      const formData = new FormData();
-      formData.append("file", file);
+      const units = [
+        "Bytes",
+        "KB",
+        "MB",
+        "GB"
+      ];
 
-      status.textContent = "Uploading and processing video...";
+      const index =
+        Math.floor(
+          Math.log(bytes) /
+          Math.log(1024)
+        );
 
-      try {
-        const response = await fetch("/upload", {
-          method: "POST",
-          body: formData
+      const size =
+        bytes /
+        Math.pow(
+          1024,
+          index
+        );
+
+      return (
+        size.toFixed(2) +
+        " " +
+        units[index]
+      );
+    }
+
+
+    function showSelectedFile(file) {
+
+      selectedFile = file;
+
+      fileName.textContent =
+        file.name;
+
+      fileSize.textContent =
+        formatFileSize(
+          file.size
+        );
+
+      fileInfo.classList.add(
+        "visible"
+      );
+
+      status.textContent = "";
+    }
+
+
+    function resetQualitySelector() {
+
+      qualitySelector.innerHTML = `
+        <option value="-1">
+          Auto
+        </option>
+      `;
+
+      currentQuality.textContent =
+        "Quality: Auto";
+    }
+
+
+    function loadAdaptiveStream(streamUrl) {
+
+      resetQualitySelector();
+
+
+      if (hls) {
+
+        hls.destroy();
+        hls = null;
+
+      }
+
+
+      if (Hls.isSupported()) {
+
+        hls = new Hls({
+          enableWorker: true,
+          startLevel: -1
         });
 
+
+        hls.loadSource(
+          streamUrl
+        );
+
+
+        hls.attachMedia(
+          videoPlayer
+        );
+
+
+        hls.on(
+          Hls.Events.MANIFEST_PARSED,
+          function () {
+
+            const uniqueHeights =
+              new Set();
+
+
+            hls.levels.forEach(
+              (level, index) => {
+
+                if (
+                  !level.height ||
+                  uniqueHeights.has(
+                    level.height
+                  )
+                ) {
+                  return;
+                }
+
+
+                uniqueHeights.add(
+                  level.height
+                );
+
+
+                const option =
+                  document.createElement(
+                    "option"
+                  );
+
+
+                option.value =
+                  index;
+
+
+                option.textContent =
+                  `${level.height}p`;
+
+
+                qualitySelector.appendChild(
+                  option
+                );
+
+              }
+            );
+
+
+            videoPlayer.play().catch(
+              () => {
+
+                console.log(
+                  "Autoplay blocked by browser."
+                );
+
+              }
+            );
+
+          }
+        );
+
+
+        hls.on(
+          Hls.Events.LEVEL_SWITCHED,
+          function (_, data) {
+
+            const level =
+              hls.levels[
+                data.level
+              ];
+
+
+            if (!level) {
+              return;
+            }
+
+
+            if (
+              qualitySelector.value === "-1"
+            ) {
+
+              currentQuality.textContent =
+                `Auto • ${level.height}p`;
+
+            } else {
+
+              currentQuality.textContent =
+                `Quality: ${level.height}p`;
+
+            }
+
+          }
+        );
+
+
+        hls.on(
+          Hls.Events.ERROR,
+          function (_, data) {
+
+            console.error(
+              "HLS error:",
+              data
+            );
+
+
+            if (data.fatal) {
+
+              status.textContent =
+                "A streaming error occurred.";
+
+            }
+
+          }
+        );
+
+      }
+
+      else if (
+        videoPlayer.canPlayType(
+          "application/vnd.apple.mpegurl"
+        )
+      ) {
+
+        videoPlayer.src =
+          streamUrl;
+
+        videoPlayer.load();
+
+        currentQuality.textContent =
+          "Quality: Auto";
+
+        qualitySelector.disabled =
+          true;
+
+
+        videoPlayer.play().catch(
+          () => {
+
+            console.log(
+              "Autoplay blocked by browser."
+            );
+
+          }
+        );
+
+      }
+
+      else {
+
+        status.textContent =
+          "HLS playback is not supported in this browser.";
+
+      }
+    }
+
+
+    async function pollJobStatus(jobId) {
+
+      while (true) {
+
+        const response =
+          await fetch(
+            `/jobs/${jobId}`
+          );
+
+
         if (!response.ok) {
-          throw new Error("Upload failed");
+
+          throw new Error(
+            "Could not retrieve job status"
+          );
+
         }
 
-        const data = await response.json();
 
-        status.textContent = "Video processed successfully.";
+        const job =
+          await response.json();
 
-        videoPlayer.src = data.stream_url;
-        videoPlayer.load();
-        videoPlayer.play();
 
-      } catch (error) {
-        status.textContent = "Something went wrong.";
-        console.error(error);
+        if (
+          job.status === "queued"
+        ) {
+
+          processingText.textContent =
+            "Job queued. Waiting for a worker...";
+
+        }
+
+
+        else if (
+          job.status === "processing"
+        ) {
+
+          processingText.textContent =
+            "Transcoding 1080p, 720p and 480p renditions...";
+
+        }
+
+
+        else if (
+          job.status === "completed"
+        ) {
+
+          processingWrapper.classList.remove(
+            "visible"
+          );
+
+
+          status.textContent =
+            "✓ Adaptive stream ready";
+
+
+          playerSection.style.display =
+            "block";
+
+
+          loadAdaptiveStream(
+            job.stream_url
+          );
+
+
+          playerSection.scrollIntoView({
+            behavior: "smooth",
+            block: "center"
+          });
+
+
+          return;
+        }
+
+
+        else if (
+          job.status === "failed"
+        ) {
+
+          processingWrapper.classList.remove(
+            "visible"
+          );
+
+
+          throw new Error(
+            job.error ||
+            "Video processing failed"
+          );
+        }
+
+
+        await new Promise(
+          resolve =>
+            setTimeout(
+              resolve,
+              1000
+            )
+        );
+
       }
-    });
+    }
+
+
+    videoFile.addEventListener(
+      "change",
+      () => {
+
+        const file =
+          videoFile.files[0];
+
+
+        if (file) {
+
+          showSelectedFile(
+            file
+          );
+
+        }
+
+      }
+    );
+
+
+    uploadArea.addEventListener(
+      "dragover",
+      (event) => {
+
+        event.preventDefault();
+
+
+        uploadArea.classList.add(
+          "dragging"
+        );
+
+      }
+    );
+
+
+    uploadArea.addEventListener(
+      "dragleave",
+      () => {
+
+        uploadArea.classList.remove(
+          "dragging"
+        );
+
+      }
+    );
+
+
+    uploadArea.addEventListener(
+      "drop",
+      (event) => {
+
+        event.preventDefault();
+
+
+        uploadArea.classList.remove(
+          "dragging"
+        );
+
+
+        const file =
+          event.dataTransfer.files[0];
+
+
+        if (!file) {
+          return;
+        }
+
+
+        if (
+          !file.type.startsWith(
+            "video/"
+          )
+        ) {
+
+          status.textContent =
+            "Please drop a valid video file.";
+
+
+          return;
+        }
+
+
+        showSelectedFile(
+          file
+        );
+
+      }
+    );
+
+
+    qualitySelector.addEventListener(
+      "change",
+      () => {
+
+        if (!hls) {
+          return;
+        }
+
+
+        const selectedLevelIndex =
+          Number(
+            qualitySelector.value
+          );
+
+
+        if (
+          selectedLevelIndex === -1
+        ) {
+
+          hls.currentLevel =
+            -1;
+
+          hls.loadLevel =
+            -1;
+
+          hls.nextLevel =
+            -1;
+
+
+          currentQuality.textContent =
+            "Quality: Auto";
+
+
+          return;
+        }
+
+
+        const selectedLevel =
+          hls.levels[
+            selectedLevelIndex
+          ];
+
+
+        if (!selectedLevel) {
+          return;
+        }
+
+
+        hls.currentLevel =
+          selectedLevelIndex;
+
+
+        hls.loadLevel =
+          selectedLevelIndex;
+
+
+        hls.nextLevel =
+          selectedLevelIndex;
+
+
+        currentQuality.textContent =
+          `Quality: ${selectedLevel.height}p`;
+
+      }
+    );
+
+
+    uploadButton.addEventListener(
+      "click",
+      async () => {
+
+        if (!selectedFile) {
+
+          status.textContent =
+            "Please select a video first.";
+
+
+          return;
+        }
+
+
+        const formData =
+          new FormData();
+
+
+        formData.append(
+          "file",
+          selectedFile
+        );
+
+
+        status.textContent =
+          "";
+
+
+        playerSection.style.display =
+          "none";
+
+
+        uploadButton.disabled =
+          true;
+
+
+        uploadButton.textContent =
+          "Uploading...";
+
+
+        processingWrapper.classList.add(
+          "visible"
+        );
+
+
+        processingText.textContent =
+          "Uploading video...";
+
+
+        try {
+
+          const response =
+            await fetch(
+              "/upload",
+              {
+                method: "POST",
+                body: formData
+              }
+            );
+
+
+          if (!response.ok) {
+
+            throw new Error(
+              "Upload failed"
+            );
+
+          }
+
+
+          const data =
+            await response.json();
+
+
+          processingText.textContent =
+            "Job queued...";
+
+
+          uploadButton.textContent =
+            "Processing...";
+
+
+          await pollJobStatus(
+            data.job_id
+          );
+
+        }
+
+
+        catch (error) {
+
+          processingWrapper.classList.remove(
+            "visible"
+          );
+
+
+          status.textContent =
+            "Something went wrong while processing the video.";
+
+
+          console.error(
+            error
+          );
+
+        }
+
+
+        finally {
+
+          uploadButton.disabled =
+            false;
+
+
+          uploadButton.textContent =
+            "Upload & Process";
+
+        }
+
+      }
+    );
   </script>
 
 </body>
