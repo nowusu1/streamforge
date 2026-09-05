@@ -1,249 +1,394 @@
 # StreamForge
 
-StreamForge is a video streaming backend that accepts uploaded videos, processes them with FFmpeg, converts them into HLS streaming segments, and serves the processed stream through a FastAPI backend.
+StreamForge is a video streaming infrastructure project that transforms uploaded videos into adaptive HLS streams using an asynchronous processing pipeline.
 
-The project is being built incrementally to explore the engineering concepts behind large-scale video streaming systems, including transcoding, adaptive bitrate streaming, caching, background workers, observability, and fault tolerance.
+The system accepts a video upload, queues the processing job through Redis and RQ, detects the source resolution with FFprobe, generates multiple HLS renditions with FFmpeg, creates a master playlist, and serves the result through a browser-based adaptive video player.
 
-## Current MVP
+---
 
-The current MVP supports an end-to-end streaming pipeline:
+## Demo
 
-```text
-Upload Video
-     ↓
-FastAPI Backend
-     ↓
-Store Original Video
-     ↓
-FFmpeg Transcoding
-     ↓
-HLS Segmentation
-     ↓
-FastAPI Static Delivery
-     ↓
-Browser Video Playback
-```
+![StreamForge Demo](backend/static/images/streamforge-demo.png)
 
-A user can upload a video through the StreamForge frontend, the backend processes the video into HLS format, and the resulting stream can be played directly in the browser.
+## Architecture
 
-## Features
+![StreamForge Streaming Infrastructure](backend/static/images/streaming-infrastructure.png)
+---
 
-* Video uploads through FastAPI
-* FFmpeg-based video processing
-* H.264 video encoding
-* AAC audio encoding
-* 720p video transcoding
-* HLS video segmentation
-* `.m3u8` playlist generation
-* HTTP delivery of HLS playlists and segments
-* Browser-based video playback
-* Dynamic stream URL generation
-* Simple upload-and-play frontend
+## What StreamForge Does
 
-## Tech Stack
-
-* **Python**
-* **FastAPI**
-* **FFmpeg**
-* **HLS**
-* **HTML**
-* **JavaScript**
-* **Uvicorn**
-
-## Project Structure
+StreamForge implements a simplified production-style video streaming pipeline:
 
 ```text
-streamforge/
-├── backend/
-│   ├── main.py
-│   ├── requirements.txt
-│   ├── static/
-│   │   └── index.html
-│   ├── uploads/
-│   └── processed/
-├── .gitignore
-└── README.md
-```
+User Upload
+    ↓
+FastAPI
+    ↓
+Redis
+    ↓
+RQ Job Queue
+    ↓
+Background Worker
+    ↓
+FFprobe
+    ↓
+Source Resolution Detection
+    ↓
+FFmpeg
+    ↓
+HLS Renditions
+    ↓
+Master Playlist
+    ↓
+FastAPI Static Streaming
+    ↓
+hls.js Player
 
-The `uploads/` and `processed/` directories are ignored by Git because they contain local video files generated while running the application.
 
-## How It Works
+Features
+Video upload through a responsive web interface
+Drag-and-drop file selection
+Asynchronous video processing with Redis and RQ
+Persistent job state stored in Redis
+Background workers separated from the API server
+FFprobe-based source resolution detection
+Automatic prevention of unnecessary video upscaling
+FFmpeg-powered video transcoding
+HLS video segmentation
+Adaptive bitrate streaming
+Multiple video renditions
+Automatic HLS master playlist generation
+Manual quality selection
+Automatic quality adaptation using hls.js
+Retry support for failed processing jobs
+Queue wait time tracking
+Per-rendition processing metrics
+End-to-end processing metrics
+Support for portrait and landscape video sources
+Unique video and job IDs to prevent filename collisions
+Adaptive Streaming
 
-### 1. Video Upload
+Depending on the uploaded source resolution, StreamForge automatically determines which renditions should be generated.
 
-The frontend sends a selected video to the FastAPI `/upload` endpoint using a multipart HTTP request.
+For example:
 
-### 2. Video Processing
+1080p source
+    ↓
+1080p
+720p
+480p
+720p source
+    ↓
+720p
+480p
+480p source
+    ↓
+480p
 
-The backend stores the original upload and invokes FFmpeg using Python's `subprocess` module.
+This prevents unnecessary upscaling and reduces processing overhead.
 
-FFmpeg:
+HLS Pipeline
 
-* reads the original video
-* scales the video to 720p
-* encodes video using H.264
-* encodes audio using AAC
-* converts the result into HLS
+Each generated rendition contains:
 
-### 3. HLS Segmentation
+playlist.m3u8
+segment000.ts
+segment001.ts
+segment002.ts
+...
 
-Instead of serving one large video file, StreamForge divides the video into smaller streaming segments.
+StreamForge then creates a master HLS playlist similar to:
+
+master.m3u8
+
+which references every available rendition.
+
+The browser player uses this playlist to automatically select and switch between available video qualities.
+
+Background Job Processing
+
+Video transcoding is intentionally separated from the FastAPI request lifecycle.
+
+When a user uploads a video:
+
+POST /upload
+
+the API:
+
+stores the uploaded video
+creates a unique job
+saves job state in Redis
+places the processing task into the StreamForge RQ queue
+immediately returns a job ID
+
+The frontend then polls:
+
+GET /jobs/{job_id}
+
+until the job reaches:
+
+completed
+
+or:
+
+failed
+
+The RQ worker independently performs the FFprobe and FFmpeg processing.
+
+Retry and Failure Recovery
+
+Processing jobs use automatic retry support.
+
+Failed worker jobs can be retried up to three times with increasing delays:
+
+5 seconds
+10 seconds
+20 seconds
+
+Worker exceptions are propagated back to RQ so failed tasks can be retried by the queue rather than silently terminating.
+
+Processing Metrics
+
+StreamForge records processing metrics for every job.
 
 Example:
 
-```text
-processed/
-└── video/
-    └── 720p/
-        ├── playlist.m3u8
-        ├── segment000.ts
-        ├── segment001.ts
-        └── segment002.ts
-```
+{
+  "queue_wait_seconds": 0.025,
+  "total_processing_seconds": 0.782,
+  "rendition_processing_seconds": {
+    "720p": 0.596,
+    "480p": 0.437
+  }
+}
 
-The `.m3u8` playlist tells the video player which segments to request and in what order.
+Metrics include:
 
-### 4. Streaming
+queue wait time
+total worker processing time
+per-rendition processing time
+job creation time
+processing start time
+completion time
+Benchmark Results
 
-FastAPI exposes the processed files through the `/stream` route.
+A short-form video was processed across five repeated local benchmark runs.
 
-After processing, the backend returns a stream URL such as:
+Average queue wait:      0.025 s
+Fastest queue wait:      0.021 s
+Slowest queue wait:      0.030 s
 
-```text
-/stream/video/720p/playlist.m3u8
-```
+Average processing:      0.782 s
+Fastest processing:      0.751 s
+Slowest processing:      0.837 s
 
-The frontend automatically loads this URL into the video player.
+Average end-to-end:      1.032 s
+Fastest end-to-end:      1.023 s
+Slowest end-to-end:      1.053 s
 
-## Running Locally
+The benchmark measures the current local development environment and short test video rather than representing production-scale throughput.
 
-### Clone the repository
+Tech Stack
+Backend
+Python
+FastAPI
+Redis
+RQ
+FFmpeg
+FFprobe
+Uvicorn
+Streaming
+HLS
+FFmpeg
+hls.js
+Frontend
+HTML
+CSS
+JavaScript
+Testing & Benchmarking
+Python Requests
+Custom benchmark script
+Project Structure
+streamforge/
+│
+├── backend/
+│   │
+│   ├── main.py
+│   ├── worker.py
+│   ├── benchmark.py
+│   ├── requirements.txt
+│   │
+│   ├── uploads/
+│   ├── processed/
+│   │
+│   └── static/
+│       │
+│       ├── index.html
+│       │
+│       └── images/
+│           └── streaming-infrastructure.png
+│
+├── .gitignore
+│
+└── README.md
+API
+Health Check
+GET /
 
-```bash
+Example:
+
+{
+  "message": "StreamForge API is running",
+  "redis": "connected",
+  "queue": "streamforge"
+}
+Upload Video
+POST /upload
+
+Example response:
+
+{
+  "message": "Video accepted for processing",
+  "job_id": "job-id",
+  "video_id": "video-id",
+  "status": "queued"
+}
+Check Job Status
+GET /jobs/{job_id}
+
+Example completed job:
+
+{
+  "job_id": "job-id",
+  "video_id": "video-id",
+  "status": "completed",
+  "source_resolution": "576x1024",
+  "renditions": [
+    "720p",
+    "480p"
+  ],
+  "stream_url": "/stream/video-id/master.m3u8",
+  "metrics": {
+    "queue_wait_seconds": 0.025,
+    "total_processing_seconds": 0.782
+  }
+}
+Running StreamForge Locally
+1. Clone the repository
 git clone https://github.com/nowusu1/streamforge.git
 cd streamforge/backend
-```
-
-### Create a Python virtual environment
-
-```bash
+2. Create a virtual environment
 python3 -m venv venv
 source venv/bin/activate
-```
-
-### Install dependencies
-
-```bash
+3. Install Python dependencies
 pip install -r requirements.txt
-```
+4. Install Redis
 
-### Install FFmpeg
+On macOS:
 
-On macOS with Homebrew:
+brew install redis
 
-```bash
+Start Redis:
+
+brew services start redis
+
+Verify:
+
+redis-cli ping
+
+Expected output:
+
+PONG
+5. Install FFmpeg
 brew install ffmpeg
-```
 
-Verify the installation:
+Verify:
 
-```bash
 ffmpeg -version
-```
-
-### Start StreamForge
-
-```bash
+6. Start the FastAPI server
 uvicorn main:app --reload
-```
 
-The backend will run at:
+The API will run at:
 
-```text
 http://127.0.0.1:8000
-```
+7. Start the RQ worker
 
-Open the application at:
+In a second terminal:
 
-```text
+cd streamforge/backend
+source venv/bin/activate
+rq worker streamforge
+8. Open StreamForge
 http://127.0.0.1:8000/app/
-```
+Running the Benchmark
 
-FastAPI documentation is available at:
+Place a short test video at:
 
-```text
-http://127.0.0.1:8000/docs
-```
+backend/uploads/test-video.mp4
 
-## Current Architecture
+Then run:
 
-```text
-Browser
-   |
-   | POST /upload
-   v
-FastAPI
-   |
-   | Save uploaded file
-   v
-Local Storage
-   |
-   | Invoke FFmpeg
-   v
-Transcoding Pipeline
-   |
-   | Generate HLS playlist + segments
-   v
-Processed Storage
-   |
-   | GET /stream/...
-   v
-Browser Video Player
-```
+python benchmark.py
 
-## Planned Development
+The benchmark performs five repeated processing jobs and reports:
 
-StreamForge will continue evolving beyond the initial MVP.
+average queue wait
+fastest and slowest queue wait
+average processing duration
+fastest and slowest processing duration
+average end-to-end completion time
+Engineering Decisions
+Why Redis?
 
-Planned features include:
+Redis provides persistent job metadata and allows the API and worker processes to communicate without depending on in-memory Python state.
 
-* 480p, 720p, and 1080p HLS renditions
-* Adaptive bitrate streaming
-* Automatic quality selection based on network conditions
-* Background video-processing workers
-* Asynchronous job queues
-* Redis caching
-* Retry and failure-recovery mechanisms
-* Concurrent processing
-* Video metadata extraction
-* Persistent storage
-* Metrics and observability
-* Throughput and latency benchmarking
-* Load testing
-* Improved frontend experience
-* Containerized deployment
+Why RQ?
 
-## Engineering Goals
+RQ provides lightweight asynchronous task processing while keeping CPU-intensive FFmpeg work out of the FastAPI request lifecycle.
 
-StreamForge is designed as a systems-focused project rather than a simple video-sharing interface.
+Why HLS?
 
-The long-term goal is to explore problems such as:
+HLS separates video into independently retrievable segments and allows the browser to adapt playback quality according to available renditions.
 
-* How should expensive video-processing jobs be handled asynchronously?
-* How can repeated video requests avoid unnecessary origin reads?
-* How should failed transcoding jobs be retried safely?
-* How can video quality adapt to changing network bandwidth?
-* How does the system behave under concurrent streaming workloads?
-* How can latency, throughput, cache-hit ratio, and failure rates be measured?
+Why FFprobe?
 
-## Status
+FFprobe allows StreamForge to inspect uploaded media before processing and avoid generating renditions larger than the original source.
 
-**MVP v1: Complete**
+Why Unique IDs?
 
-Current pipeline:
+Each upload receives unique video and job identifiers, preventing collisions between users uploading files with identical names.
 
-```text
-Upload → Transcode → Segment → Serve → Stream
-```
+Future Improvements
 
-Development of MVP v2 is in progress.
+Potential extensions include:
+
+multiple concurrent RQ workers
+object storage such as Amazon S3
+CDN-backed segment delivery
+distributed worker deployment
+authentication and user accounts
+persistent database-backed video metadata
+upload size validation
+job expiration and storage cleanup
+video thumbnails
+streaming analytics
+cache hit-rate monitoring
+containerized deployment
+Status
+
+StreamForge currently supports the complete local workflow:
+
+Upload
+→ Queue
+→ Process
+→ Detect Resolution
+→ Transcode
+→ Segment
+→ Generate HLS
+→ Stream
+→ Adapt Playback Quality
+→ Track Metrics
+
+The project demonstrates asynchronous media processing, background job orchestration, adaptive streaming, queue-based architecture, and system performance measurement.
+
+
